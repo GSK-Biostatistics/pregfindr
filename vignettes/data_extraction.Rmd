@@ -1,0 +1,307 @@
+---
+title: "Data Extraction"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Data Extraction}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+For the algorithm to work, you need to extract from your cut of MarketScan (Commercial Claims or Medicaid) specific claims records (marked by the codes stored in the codelists) for services between specific dates on women within specific age boundaries. This is the first step highlighted in the [pregfindr vignette](pregfindr.html).
+
+The result of this extraction should follow the following format:
+```{r eval=FALSE, echo = TRUE}
+?pregfindr::extraction_example
+```
+
+Since different companies use different technologies to store the latest cut of MarketScan, we are sharing an example script that you can customise for your data storage system.
+This script uses helper functions defined in the package and specific codelists. To learn more about the codelists and how to modify them, refer to the [codelist vignette](codelists.html).
+
+```{r eval=FALSE, echo=TRUE}
+# The script is designed to extract, process, and analyse healthcare data from the
+# MarketScan database. It identifies eligible women within a specific age range and study
+# period, retrieves their medical claims data, matches these with
+# pregnancy-related diagnosis and procedure codes, and combines all the data
+# into a single dataset. The script also includes logging and data saving
+# functionalities.
+
+# Loading packages
+library(pregfindr)
+library(logr)
+library(DBI)
+library(dplyr)
+library(dbplyr)
+library(lubridate)
+
+# Starting log -------------
+log_file <- log_open(show_notes = FALSE)
+
+# Setting variables ------------
+sep("Variables")
+
+# Pointer to latest cut of MarketScan available and key parameters for analysis
+cut <- "2023q2"
+
+# Set Study Time Period - time frame of analysis
+study_start_date <- "01Jan2021" # study start date
+service_start_date <- "2021-01-01"
+
+# when pregnancy ends outside of range, it will have unknown outcome
+study_end_date <- "31Dec2021" # study end date
+service_end_date <- "2021-12-31"
+start_yr <- 2021 # Study start year
+last_yr <- 2021 # Study end year
+
+# pointer to key parameters for analysis - when drugs are approved for adult patients, then we might want to subset
+age_start <- 30 # ages of interest
+age_end <- 60 # ages of interest
+mem_days <- 1 # minimum follow-up in a year - since want to find all who ever use meds
+# typically set to one day
+
+# Number of days before study start to assess pregnancy codes - full term pregnancies are 270 days - allows for longer pregnancies
+presvcstart <- 300
+
+# Number of days for the pre-conception period - to allow for drugs to be flushed out
+pre_conception_days <- 90
+
+# Number of DAYS of required enrolment before and after index  - to boost sensitivity
+enrolment <- 0
+
+# Log variables
+put(vars_content_to_string(cut, study_start_date, study_end_date, start_yr, age_start, age_end, mem_days, presvcstart, pre_conception_days, enrolment))
+
+# Store file locally (TRUE / FALSE)
+data_extraction_save_locally <- TRUE
+
+# Connecting to database -------------
+
+# Setup connection to Impala - variables are present in environment
+
+db_connection <- dbConnect(
+  odbc::odbc(),
+  driver = Sys.getenv("RDIP_IMPALA_DRIVER"),
+  host = Sys.getenv("RDIP_IMPALA_SERVER"),
+  port = Sys.getenv("RDIP_IMPALA_PORT"),
+  authmech = Sys.getenv("RDIP_IMPALA_AUTH_MECH"),
+  ssl = Sys.getenv("RDIP_IMPALA_SSL"),
+  trustedcerts = Sys.getenv("RDIP_IMPALA_TRUSTED_CERTS"),
+  database = Sys.getenv("RDIP_IMPALA_DATABASE"),
+  uid = Sys.getenv("RDIP_IMPALA_USERID"),
+  pwd = Sys.getenv("RDIP_IMPALA_PASSWORD")
+)
+
+# Show different schemas
+#dbGetQuery(db_connection, 'show schemas')
+
+# Create a lazy tbl from the Impala tables
+
+clnprw_marketscan_inpat <- db_connection %>% tbl(in_schema("clnprw_truven_commercial_claims", paste0("t_s_inpat_", cut)))
+clnprw_marketscan_outpat <- db_connection %>% tbl(in_schema("clnprw_truven_commercial_claims", paste0("t_o_outpt_", cut)))
+
+# Save pregnancy codes (ICD-CM-9, ICD-CM.CM, and CPT) to database and import lazily
+icd9_diagnosis_pregnancy_codes <- write_to_impala_then_read_lazy_table(tablename = "icd9_dx_preg", pregfindr::icd9_diagnosis_pregnancy_codes,
+                                                                       schema = "clnprw_rwd", connection = db_connection, overwrite = FALSE)
+icd10_diagnosis_pregnancy_codes <- write_to_impala_then_read_lazy_table(tablename = "icd10_dx_preg", pregfindr::icd10_diagnosis_pregnancy_codes,
+                                                                        schema = "clnprw_rwd", connection = db_connection, overwrite = FALSE)
+icd9_procedure_pregnancy_codes <- write_to_impala_then_read_lazy_table(tablename = "icd9_proc_preg", pregfindr::icd9_procedure_pregnancy_codes,
+                                                                       schema = "clnprw_rwd", connection = db_connection, overwrite = FALSE)
+icd10_procedure_pregnancy_codes <- write_to_impala_then_read_lazy_table(tablename = "icd10_proc_preg", pregfindr::icd10_procedure_pregnancy_codes,
+                                                                        schema = "clnprw_rwd", connection = db_connection, overwrite = FALSE)
+cpt_pregnancy_codes <- write_to_impala_then_read_lazy_table(tablename = "cpt_preg", pregfindr::cpt_pregnancy_codes,
+                                                            schema = "clnprw_rwd", connection = db_connection, overwrite = FALSE) 
+
+# Identify patients using Inpatient & Outpatient claims -----------------
+# 1) We will identify all records for eligible women in the inpatient dataset, then retrieve all the procedures
+# they had by matching their procedures with several sets of codes
+# 2) We will repeat step 1 for the outpatient records
+# 3) We will merge all of these into a long list
+# 4) We will standardise age variables 
+
+# Setting time variables
+## Start of study period minus a certain number of days to capture pregnancy start dates
+pre_service_date <- as.POSIXct(as.character(lubridate::ymd(service_start_date) - lubridate::days(presvcstart)), tz = "UTC")
+## End of study period
+service_end_date <- as.POSIXct(service_end_date, tz = "UTC")
+
+# 1) Inpatient claims
+
+## Identify all eligible women in inpatient database
+#' Note: if slow, pre-selecting vars in .data might speed it up
+
+inpatient_claims <- filter_eligible_women(
+  .data = clnprw_marketscan_inpat,
+  .age_start = age_start,
+  .age_end = age_end,
+  .last_yr = last_yr,
+  .presvcdate = pre_service_date,
+  .svcend = service_end_date,
+  .claims_file = "I",
+  .variables_to_keep = c(enrolid, svcdate, dobyr, dx1, dx2, dx3, dx4, dxver, pdx, pproc, proc1, claims_file)
+)
+
+## Inpatient ICD-9 Dx Codes
+icd9_pregnancy_diagnosis_inpatient_claims <- find_matches_in_ICD(
+  .data = inpatient_claims,
+  inpat = TRUE,
+  .dxver = "9",
+  .icd_data = icd9_diagnosis_pregnancy_codes,
+  .icd_value = "icd9cm",
+  .variables_to_keep = c(enrolid, dobyr, dx, description, pdx, claims_file, svcdate, final_trimester_code, outcome, secondary_outcome)
+)
+## Inpatient ICD-10 Dx Codes
+icd10_pregnancy_diagnosis_inpatient_claims <- find_matches_in_ICD(
+  .data = inpatient_claims,
+  inpat = TRUE,
+  .dxver = "0",
+  .icd_data = icd10_diagnosis_pregnancy_codes,
+  .icd_value = "icd10cm",
+  .variables_to_keep = c(enrolid, dobyr, dx, description, pdx, claims_file, svcdate, final_trimester_code, outcome, secondary_outcome)
+)
+
+## Inpatient ICD-9 Proc Codes
+icd9_pregnancy_procedure_inpatient_claims <- match_on_pregnancy_procedure_code(
+  .data = inpatient_claims,
+  .proc_data = icd9_procedure_pregnancy_codes,
+  .by_var_claims = "pproc",
+  .by_var_proc_code = "icd9_proc",
+  .variables_to_keep = c(enrolid, dobyr, proc, description, claims_file, svcdate, final_trimester_code, outcome)
+)
+
+## Inpatient ICD-10 Proc Codes
+icd10_pregnancy_procedure_inpatient_claims <- match_on_pregnancy_procedure_code(
+  .data = inpatient_claims,
+  .proc_data = icd10_procedure_pregnancy_codes,
+  .by_var_claims = "pproc",
+  .by_var_proc_code = "icd10_proc",
+  .variables_to_keep = c(enrolid, dobyr, proc, description, claims_file, svcdate, final_trimester_code, outcome)
+)
+
+## Inpatient CPT Codes
+cpt_pregnancy_inpatient_claims <- match_on_pregnancy_cpt_code(
+  .data = inpatient_claims,
+  .cpt_data = cpt_pregnancy_codes,
+  .variables_to_keep = c(enrolid, dobyr, cpt, description, claims_file, svcdate, final_trimester_code, outcome, secondary_outcome)
+)
+
+# 2) Outpatient claims
+
+## Identify all eligible women in outpatient dataset
+# ID women that fit inclusion criteria of age and time period
+outpatient_claims <- filter_eligible_women(
+  .data = clnprw_marketscan_outpat,
+  .variables_to_keep = c(enrolid, svcdate, dobyr, dx1, dx2, dx3, dx4, dxver, proc1, claims_file),
+  .age_start = age_start,
+  .age_end = age_end,
+  .last_yr = last_yr,
+  .presvcdate = pre_service_date,
+  .svcend = service_end_date,
+  .claims_file = "O"
+)
+
+## Outpatient ICD-9 Dx Codes
+icd9_pregnancy_diagnosis_outpatient_claims <- find_matches_in_ICD(
+  .data = outpatient_claims,
+  inpat = FALSE,
+  .dxver = "9",
+  .icd_data = icd9_diagnosis_pregnancy_codes,
+  .icd_value = "icd9cm",
+  .variables_to_keep = c(enrolid, dobyr, dx, description, pdx, claims_file, svcdate, final_trimester_code, outcome, secondary_outcome)
+)
+
+## Outpatient ICD-10 Dx Codes
+icd10_pregnancy_diagnosis_outpatient_claims <- find_matches_in_ICD(
+  .data = outpatient_claims,
+  inpat = FALSE,
+  .dxver = "0",
+  .icd_data = icd10_diagnosis_pregnancy_codes,
+  .icd_value = "icd10cm",
+  .variables_to_keep = c(enrolid, dobyr, dx, description, pdx, claims_file, svcdate, final_trimester_code, outcome, secondary_outcome)
+)
+
+## Outpatient CPT Codes
+cpt_pregnancy_outpatient_claims <- match_on_pregnancy_cpt_code(
+  .data = outpatient_claims,
+  .cpt_data = cpt_pregnancy_codes,
+  .variables_to_keep = c(enrolid, dobyr, cpt, description, claims_file, svcdate, final_trimester_code, outcome, secondary_outcome)
+)
+# 3) and 4) Bring datasets into work library to manipulate and clean
+
+## ICD-9/ICD-10: Combine inpatient and outpatient ICD-CM-9 and ICD-CM-10 diagnosis cohorts
+sep("Combine inpatient and outpatient ICD-CM-9 diagnosis cohorts")
+icd9_pregnancy_diagnoses <- union(
+  icd9_pregnancy_diagnosis_inpatient_claims,
+  icd9_pregnancy_diagnosis_outpatient_claims
+) %>% collect()
+put("Step completed successfully.")
+
+sep("Combine inpatient and outpatient ICD-CM-10 diagnosis cohorts")
+icd10_pregnancy_diagnoses <- union(
+  icd10_pregnancy_diagnosis_inpatient_claims,
+  icd10_pregnancy_diagnosis_outpatient_claims
+) %>% collect()
+put("Step completed successfully.")
+
+sep("Combine inpatient and outpatient ICD-CM-9 and ICD-CM-10 diagnosis cohorts")
+icd_pregnancy_diagnosis_union <-
+  union_all(
+    icd9_pregnancy_diagnoses,
+    icd10_pregnancy_diagnoses
+  )
+put("Step completed successfully.")
+
+## PROC: Combine inpatient procedure datasets
+sep("Combine inpatient procedure cohorts")
+icd_pregnancy_procedure_union <- union(
+  icd9_pregnancy_procedure_inpatient_claims,
+  icd10_pregnancy_procedure_inpatient_claims
+) %>% collect()
+put("Step completed successfully.")
+
+## CPT: Merge inpatient and outpatient CPT code cohorts
+sep("Combine inpatient and outpatient CPT code cohorts")
+cpt_pregnancy_union <-
+  union(
+    cpt_pregnancy_inpatient_claims,
+    cpt_pregnancy_outpatient_claims
+  ) %>% collect()
+put("Step completed successfully.")
+
+
+## Combine ICD9/ICD10, PROC, and CPT into a single dataset and add new age variables
+sep("Merge all data into one data set")
+patients <-
+  bind_rows(
+    ## ICD9/ICD10
+    icd_pregnancy_diagnosis_union %>%
+      rename(code = dx),
+    ## PROC
+    icd_pregnancy_procedure_union %>%
+      rename(code = proc),
+    ## CPT
+    cpt_pregnancy_union %>%
+      rename(code = cpt)
+  ) %>%
+  calculate_age_variables()
+
+put("Step completed successfully.")
+
+dbDisconnect(db_connection)
+
+# Saving results Locally -------
+if (data_extraction_save_locally) {
+  sep("Saving results locally")
+  arrow::write_parquet(patients, "extraction_result.parquet")
+  if (file.exists("extraction_result.parquet")) {
+    put("Step completed successfully.")
+  } else {
+    put("Step failed.")
+  }
+}
+
+# Closing log -------------
+log_close()
+
+# Garbage collection -------
+gc()
+```
+

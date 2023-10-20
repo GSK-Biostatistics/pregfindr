@@ -1,0 +1,123 @@
+---
+title: "pregfindr"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{pregfindr}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+This package allows you to identify pregnancies in a specific cut of the IBM MarketScan database using the algorithm described in Sumner, K. M., Ehlinger, A., Georgiou, M. E., & Wurst, K. E. (2021). Development and evaluation of standardized pregnancy identification and trimester distribution algorithms in U.S. IBM MarketScan® Commercial and Medicaid data. Birth defects research, 113(19), 1357--1367. <https://doi.org/10.1002/bdr2.1954>
+
+Identifying the pregnancies using the package requires the following steps:\
+1. Extracting specific records between specific dates from the desired cut of MarketScan\
+2. Assigning a single trimester code for records with the same service day\
+3. Assigning a single outcome for records with the same service day\
+4. Assigning pregnancy start and end date for each pregnancy
+
+The algorithm we implemented relies on specific code lists drafted by GSK professionals. These are used internally by the package. To learn more about the codelists and how to modify them, refer to the [codelist vignette](codelists.html).
+
+Note: due to the large volume of data and the amount of computational power required to run this algorithm, you should avoid running your scripts locally and instead run them as a job on a powerful server. Thankfully, you only have to run the following steps once per MarketScan cut.
+
+## 1. Extraction of records
+
+The first step is the extraction of specific claims records (marked by the codes stored in the codelists) for services between specific dates on women within specific age boundaries.
+
+Different companies use different technologies to store the latest cut of MarketScan. For this reason, we are providing an example script that can be used as a guideline.
+Refer to the [data extraction vignette](data_extraction.html).
+
+You should adapt the data extraction step to work with your storage system.
+
+Note: For the successful execution of the code, the record sample size must be sufficiently large. If any errors occur, they are likely due to an inadequate sample size. In such cases, consider expanding the age range of interest.
+
+## 2. Apply trimester hierarchy
+
+Once you are done with the first step, you should have a subset of MarketScan. The outcome should have records for many patients and follow this format.
+```{r eval = FALSE, echo = TRUE}
+?pregfindr::extraction_example
+```
+
+You can apply the trimester hierarchy to these data to reassign the trimester codes for claims that have different trimester codes on the same service day. We recommend that you store the result to disk.
+
+```{r eval = FALSE, echo = TRUE}
+library(pregfindr)
+
+# Load data extraction results
+extraction_result <- arrow::read_parquet("extraction_result5060.parquet")
+
+# Store file locally (TRUE / FALSE)
+trimester_hierarchy_save_locally <- FALSE
+trimester_hierarchy_filepath <- "commercial_trimester_hierarchy_final.parquet"
+
+# Apply trimester hierarchy
+trimester_hierarchy_final <- apply_trimester_hierarchy(extraction_result)
+
+# Saving results Locally -------
+if (trimester_hierarchy_save_locally) {
+   arrow::write_parquet(trimester_hierarchy_final, trimester_hierarchy_filepath)
+}
+```
+
+To learn more about the trimester reallocation hierarchy, we encourage you to check the [Trimester Hierarchy vignette](trimester_hierarchy.html) and to read the function documentation and its utilities:
+```{r eval=FALSE, echo = TRUE}
+?pregfindr::apply_trimester_hierarchy()
+```
+
+## 3. Apply outcome hierarchy
+
+You should then apply the outcome hierarchy to reassign pregnancy outcomes for outcomes on the same service day.
+
+```{r eval = FALSE, echo = TRUE}
+# Store file locally (TRUE / FALSE)
+outcome_hierarchy_save_locally <- FALSE
+outcome_hierarchy_filepath <- "commercial_outcome_hierarchy_final.parquet"
+
+# Apply outcome hierarchy
+outcome_hierarchy_final <- apply_outcome_hierarchy(trimester_hierarchy_final)
+
+# Saving results Locally -------
+if (outcome_hierarchy_save_locally) {
+   arrow::write_parquet(outcome_hierarchy_final, outcome_hierarchy_filepath)
+}
+```
+
+To learn more about the outcome reallocation hierarchy, we encourage you to check the [Outcome Hierarchy vignette](outcome_hierarchy.html) and to read the function documentation and its utilities:
+```{r eval = FALSE, echo = TRUE}
+?pregfindr::apply_outcome_hierarchy()
+```
+
+
+## 4. Estimate pregnancy start and end date
+
+You should then assign the start and end dates of a pregnancy.\
+If patients have multiple outcomes, gestation weeks codes or multiple trimester codes, overlapping start and end dates can result. This step applies hierarchies to assign start and end dates to each pregnancy episode for each patient.
+
+Due to the large number of calculations, this step is really slow.
+
+```{r eval = FALSE, echo = TRUE}
+# Store file locally (TRUE / FALSE)
+outcome_start_end_date_save_locally <- FALSE
+pregnancy_data_cleaned_filepath <- "pregnancy_data_cleaned.parquet"
+
+# Apply pregnancy start and end date hierarchy
+pregnancy_data_cleaned <- apply_pregnancy_start_end_hierarchy(outcome_hierarchy_final)
+
+# Saving results Locally -------
+if (outcome_start_end_date_save_locally) {
+   arrow::write_parquet(pregnancy_data_cleaned, pregnancy_data_cleaned_filepath)
+}
+
+```
+
+To learn more about the pregnancy start and end allocation hierarchy, we encourage you to check the [Identifying Pregnancy Start and End Dates vignette](identifying_pregnancy_start_and_end_dates.html) and to read the function documentation and its utilities:
+```{r eval = FALSE, echo = TRUE}
+?pregfindr::apply_pregnancy_start_end_hierarchy()
+```
+

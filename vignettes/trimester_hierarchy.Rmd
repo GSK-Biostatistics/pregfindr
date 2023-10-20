@@ -1,0 +1,169 @@
+---
+title: "Trimester Hierarchy"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Trimester Hierarchy}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+**Trimester Code Hierarchy**
+
+**If multiple conflicting trimester codes occur on the same day, the
+trimester codes for that service day will be reassigned based on the
+logic below. However, the outcome codes will be preserved and
+unaffected. Trimester code "8" will only be used if no other code exist
+on the same day.**
+
+1.  Classify trimester codes into 4 tiers: tier 1 = 1, 2 or 3; tier 2 = 4
+    or 5; tier 3 = 9; tier 4 = 8;
+
+    *Trimester code 1* is assigned if a trimester code "1" exists and
+    trimester codes "2", "3", "5" do not exist on the same service day
+
+    *Trimester code 2* is assigned if a trimester code "2" exists and
+    trimester codes "1", "3" do not exist on the same service day
+
+    *Trimester code 3* is assigned if a trimester code "3" exists and
+    trimester codes "1", "2" & "4" do not exist on the same service day
+
+    *Trimester code 4* is assigned if a trimester code "4" exists and
+    trimester codes "1", "2", "3" & "5" do not exist on the same service
+    day
+
+    *Trimester code 5* is assigned if a trimester code "5" exists and
+    trimester codes "1", "2", "3" & "4" do not exist on the same service
+    day
+
+    *Trimester code 9* is assigned if a trimester code "9" exists and
+    trimester codes "1", "2", "3", "4" & "5", do not exist on the same
+    service day
+
+    *Trimester code 8* is assigned if a trimester code "8" exists and
+    trimester codes "1", "2", "3", "4" "5" & "9", do not exist on the
+    same service day
+
+2.  All other codes that incur on the same service day as the Z3AXX,
+    P073X & P072X codes, which specify the number of gestation weeks,
+    will be reassigned the trimester code of the Z3AXX code. If there
+    are multiple Z3AXX/P073X/P072X codes occur on the same day, the code
+    with the latest weeks specified will be used. Since codes 'Z3A00',
+    'Z3A', 'Z3A0', 'Z3A01', 'Z3A1', 'Z3A2', 'Z3A3' and 'Z3A4' do not
+    specify the number of gestation weeks, they will not be included in
+    this hierarchy.
+
+3.  If patient has a Z3A code, use the weeks to calculate the correct
+    trimester for those with conflicting before & after. 0 to 42 weeks
+    is average term. 0-13 weeks = trimester 1, 14-27 weeks = trimester 2
+    and 28-42 weeks = trimester 3.
+
+4.  Count the number of trimester codes group (i.e. #1s, #2s, etc) that
+    are occurring on the same service day. If there are multiple codes
+    for the same trimester and a few for a different trimester occurring
+    on same day, use codes for the trimester assignment that has the
+    most instances.
+
+    *Trimester code 1* is assigned if the \# of trimester codes for "1"
+    is greater than the \# of trimester codes for "2" & "3" and greater
+    than or equal to the \# trimester codes for "4", "5"
+
+    *Trimester code 2* is assigned if the \# of trimester codes for "2"
+    is greater than the \# of trimester codes for "1" & "3" and greater
+    than or equal to the \# trimester codes for "4", "5"
+
+    *Trimester code 3* is assigned if the \# of trimester codes for "3"
+    is greater than the \# of trimester codes for "1" & "2" and greater
+    than or equal to the \# trimester codes for "4", "5"
+
+    *Trimester code 4* is assigned if the \# of trimester codes for "4"
+    is greater than the \# of trimester codes for "5" and trimester
+    codes "1", "2" & "3" do not exist on the same service day
+
+    *Trimester code 5* is assigned if the \# of trimester codes for "5"
+    is greater than the \# of trimester codes for "4" and trimester
+    codes "1", "2" & "3" do not exist on the same service day
+
+5.  Any Pregnancy loss: Ectopic pregnancy, Induced abortion, Spontaneous
+    abortion, Stillbirth and Unclassified pregnancy loss
+
+    Combinations:
+
+-   If a spontaneous abortion code and a stillbirth code occur on the
+    same day classify trimester coding as spontaneous abortion
+
+-   If a spontaneous abortion code, a stillbirth code and an induced
+    abortion code and/or an unclassified loss code occur on the same day
+    classify trimester coding as spontaneous abortion
+
+-   If an induced abortion code, a stillbirth code and no spontaneous
+    abortion code occur on the same day classify trimester coding as
+    induced abortion
+
+-   If an induced abortion code, a stillbirth code, an unclassified loss
+    code and no spontaneous abortion code occur on the same day classify
+    trimester coding as induced abortion
+
+-   If an Any Pregnancy loss code occurs on the same day as a labor or
+    delivery code (L and D list) follow Any Pregnancy loss code
+    trimester coding
+
+    Of the above combinations, if multiple conflicting pregnancy loss
+    trimester codes appear on the same service date, select the highest
+    trimester code and the lowest tier ranking (i.e. tier 1 = 1,2 or 3;
+    tier 2 = 4 or 5; tier 3 = 9; tier 4 = 8)
+
+6.  Primary and Secondary diagnosis will be identified. If the trimester
+    assignment for the code in the secondary position does not match
+    code in primary position, use primary trimester assignment. If
+    multiple still exist, count the number of primary dx trimester codes
+    group (i.e. #1s, #2s, etc) that are occurring on the same service
+    day in repeat assignment logic used in Hierarchy #1 using count of
+    primary only
+
+7.  Instances where there is a trimester code of "1", outcome =
+    "Delivery" and no outcomes of "Induced abortion" or "Spontaneous
+    abortion", then the trimester code will be reassigned a "5"
+
+8.  Claims data files "Inpatient" & "Outpatient" will be identified. If
+    the trimester assignment for the code on the outpatient file does
+    not match code on the inpatient file, use inpatient trimester
+    assignment. If multiple still exist, count the number of inpatient
+    trimester codes group (i.e. #1s, #2s, etc) that are occurring on the
+    same service day in repeat assignment logic used in Hierarchy #1
+    using count of inpatient only
+
+9.  Of remaining service day claims with conflicting trimester
+    assignment, if additional claims exist for these patients within 60
+    days, ignore and do not include them to assign the trimester
+
+10. If patients have an ultrasound CPT code of ('76801' '76802') for a
+    first trimester, conflicting codes that incur on the same service
+    day will be reassigned the CPT trimester code of 1
+
+11. Reassign the trimesters based on the following scenarios:
+
+    *Trimester code 2* is assigned if a trimester code "1", "2" & "5"
+    exists and trimester codes "3" & "4" do not exist on the same
+    service day
+
+    *Trimester code 3* is assigned if a trimester code "3" & "8" exists
+    and trimester code "4" do not exist on the same service day
+
+    *Trimester code 3* is assigned if a trimester code "1", "3" & "5"
+    exists and trimester code "4" do not exist on the same service day
+
+    *Trimester code 4* is assigned if a trimester code "1" & "2" exists
+    and trimester codes "3" & "5" do not exist on the same service day
+
+    *Trimester code 5* is assigned if a trimester code "2" & "3" exists
+    and trimester codes "1" & "8" do not exist on the same service day
+
+    *Trimester code 5* is assigned if a trimester code "3", "4" & "5"
+    exists and trimester codes "1" & "2" do not exist on the same
+    service day
+
+12. Of remaining service day claims with conflicting trimester
+    assignment, ignore and do not include them to assign the trimester

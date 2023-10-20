@@ -1,0 +1,41 @@
+url: https://gsk-biostatistics.github.io/pregfindr/
+template:
+  bootstrap: 5
+reference:
+  - title: Algorithm
+    contents:
+    - apply_trimester_hierarchy
+    - apply_outcome_hierarchy
+    - apply_pregnancy_start_end_hierarchy
+    
+  - title: Data extraction
+    contents:
+    - filter_eligible_women
+    - find_matches_in_ICD
+    - match_on_pregnancy_cpt_code
+    - match_on_pregnancy_procedure_code
+    - calculate_age_variables
+    - extraction_example
+    
+  - title: Pregnancy Codes
+    contents:
+    - cpt_pregnancy_codes
+    - icd10_diagnosis_pregnancy_codes
+    - icd10_procedure_pregnancy_codes
+    - icd9_diagnosis_pregnancy_codes
+    - icd9_procedure_pregnancy_codes
+    - labor_delivery_codes
+    
+  - title: Reading and writing data
+    contents:
+    - save_parquet
+    - write_to_impala_then_read_lazy_table
+
+  - title: Other helpers
+    contents:
+    - drop_NAs_in_trimester_code_clean
+    - keep_only_NAs_in_trimester_code_clean
+    - Nsundays
+    - success_confirmation
+    - validation_error
+    - vars_content_to_string

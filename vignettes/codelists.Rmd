@@ -1,0 +1,195 @@
+---
+title: "Codelists"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Codelists}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+This package uses specific codelists developed by GSK.  
+These codelists are documented and can be accessed within the package.
+
+Below is a list of all the codelists included in the package:
+
+```{r eval=FALSE, echo = TRUE}
+?pregfindr::icd9_diagnosis_pregnancy_codes
+?pregfindr::icd10_diagnosis_pregnancy_codes
+?pregfindr::icd9_procedure_pregnancy_codes
+?pregfindr::icd10_procedure_pregnancy_codes
+?pregfindr::cpt_pregnancy_codes
+?pregfindr::labor_delivery_codes
+```
+
+If you want to modify these codelists, please note that the package uses a compressed version of them for internal purposes. To facilitate your development process, we provide a script that allows you to load your codelists from an Excel format and ensure their compatibility with the package.
+
+```{r eval=FALSE, echo = TRUE}
+# Change these --------------
+# Paths to codelists
+icd9_cm_codelist_path <- "icd9_cm_codes.xlsx"
+icd10_cm_codelist_path <- "icd10_cm_codes.xlsx"
+icd9_proc_codelist_path <- "icd9_proc_codes.xlsx"
+icd10_proc_codelist_path <- "icd10_proc_codes.xlsx"
+cpt_codelist_path <- "cpt_pregnancy_codes.xlsx"
+l_d_codelist_path <- "labour_and_delivery_list.xlsx"
+
+# No need to change anything else ------------
+# Loading packages
+library(readxl)
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(logr)
+library(assertr)
+
+# Defining helper functions
+validation_error <- function(list_of_errors, data = NULL, ...) {
+  # we are checking to see if there are any errors that
+  # are still attached to the data.frame
+  if (!is.null(data) && !is.null(attr(data, "assertr_errors"))) {
+    errors <- append(attr(data, "assertr_errors"), errors)
+  }
+
+  num.of.errors <- length(list_of_errors)
+
+  preface <- sprintf(
+    "There %s %d error%s:\n",
+    ifelse(num.of.errors == 1, "is", "are"),
+    num.of.errors,
+    ifelse(num.of.errors == 1, "", "s")
+  )
+  error_string <- lapply(list_of_errors, function(x) paste(x[["message"]], collapse = "\n"))
+  error_string <- c(preface, error_string)
+  error_string <- paste(error_string, collapse = "\n")
+  put(error_string)
+}
+
+success_confirmation <- function(data = NULL) {
+  put("Step completed successfully.")
+}
+
+# Starting log -------------
+log_file <- log_open(show_notes = FALSE)
+
+# Importing pregnancy codes (ICD-CM-9, ICD-CM-10, and CPT) relevant to pregnancy and delivery ---------
+## ICD-CM-9: International Classification of Diseases, Ninth Revision, Clinical Modification
+## ICD-CM-10: International Classification of Diseases, Tenth Revision, Clinical Modification
+## CPT: Current Procedural Terminology, maintained by the American Medical Association (AMA)
+
+##  Import Pregnancy Code Lists
+
+icd9_diagnosis_pregnancy_codes <- read_excel(icd9_cm_codelist_path, trim_ws = TRUE, .name_repair = str_to_lower) %>%
+  mutate(secondary_outcome = replace_na(secondary_outcome, " ")) %>%
+  mutate(
+    outcome = str_to_sentence(outcome),
+    secondary_outcome = str_to_sentence(secondary_outcome)
+  )
+
+icd10_diagnosis_pregnancy_codes <- read_excel(icd10_cm_codelist_path, trim_ws = TRUE, .name_repair = str_to_lower) %>%
+  mutate(secondary_outcome = replace_na(secondary_outcome, " ")) %>%
+  mutate(
+    outcome = str_to_sentence(outcome),
+    secondary_outcome = str_to_sentence(secondary_outcome)
+  )
+
+icd9_procedure_pregnancy_codes <- read_excel(icd9_proc_codelist_path, trim_ws = TRUE, .name_repair = str_to_lower) %>%
+  mutate(outcome = str_to_sentence(outcome))
+
+icd10_procedure_pregnancy_codes <- read_excel(icd10_proc_codelist_path, trim_ws = TRUE, .name_repair = str_to_lower) %>%
+  mutate(outcome = str_to_sentence(outcome))
+
+cpt_pregnancy_codes <- read_excel(cpt_codelist_path, trim_ws = TRUE, .name_repair = str_to_lower) %>%
+  mutate(
+    outcome = replace_na(outcome, " "),
+    secondary_outcome = replace_na(secondary_outcome, " ")
+  ) %>%
+  mutate(
+    outcome = str_to_sentence(outcome),
+    secondary_outcome = str_to_sentence(secondary_outcome)
+  )
+
+## Import Labor/Delivery Code List
+
+labor_delivery_codes <- read_excel(l_d_codelist_path, trim_ws = TRUE, .name_repair = str_to_lower)
+
+# Data Validation ----------
+
+sep("Loading ICD-CM-9 diagnosis pregnancy codes")
+icd9_diagnosis_pregnancy_codes %>%
+  chain_start() %>%
+  verify(has_all_names("icd9cm", "description", "outcome", "secondary_outcome")) %>%
+  verify(has_class("icd9cm", "description", "outcome", "secondary_outcome", class = "character")) %>%
+  verify(has_class("final_trimester_code", class = "numeric")) %>%
+  assert(not_na, "icd9cm", "description", "outcome", "secondary_outcome") %>%
+  chain_end(
+    success_fun = success_confirmation,
+    error_fun = validation_error
+  )
+
+sep("Loading ICD-CM-10 diagnosis pregnancy codes")
+icd10_diagnosis_pregnancy_codes %>%
+  chain_start() %>%
+  verify(has_all_names("icd10cm", "description", "outcome", "secondary_outcome")) %>%
+  verify(has_class("icd10cm", "description", "outcome", "secondary_outcome", class = "character")) %>%
+  verify(has_class("final_trimester_code", class = "numeric")) %>%
+  assert(not_na, "icd10cm", "description", "outcome", "secondary_outcome") %>%
+  chain_end(
+    success_fun = success_confirmation,
+    error_fun = validation_error
+  )
+
+sep("Loading ICD-CM-9 procedure pregnancy codes")
+icd9_procedure_pregnancy_codes %>%
+  chain_start() %>%
+  verify(has_all_names("icd9_proc", "description", "outcome", "final_trimester_code")) %>%
+  verify(has_class("icd9_proc", "description", "outcome", class = "character")) %>%
+  verify(has_class("final_trimester_code", class = "numeric")) %>%
+  assert(not_na, "icd9_proc", "description", "outcome", "final_trimester_code") %>%
+  chain_end(
+    success_fun = success_confirmation,
+    error_fun = validation_error
+  )
+
+sep("Loading ICD-CM-10 procedure pregnancy codes")
+icd10_procedure_pregnancy_codes %>%
+  chain_start() %>%
+  verify(has_all_names("icd10_proc", "description", "outcome", "final_trimester_code")) %>%
+  verify(has_class("icd10_proc", "description", "outcome", class = "character")) %>%
+  verify(has_class("final_trimester_code", class = "numeric")) %>%
+  assert(not_na, "icd10_proc", "description", "outcome", "final_trimester_code") %>%
+  chain_end(
+    success_fun = success_confirmation,
+    error_fun = validation_error
+  )
+
+sep("Loading CPT pregnancy codes")
+cpt_pregnancy_codes %>%
+  chain_start() %>%
+  verify(has_all_names("cpt", "cpt_desc", "outcome", "secondary_outcome", "final_trimester_code")) %>%
+  verify(has_class("cpt", "cpt_desc", "outcome", "secondary_outcome", class = "character")) %>%
+  verify(has_class("final_trimester_code", class = "numeric")) %>%
+  assert(not_na, "cpt", "cpt_desc", "outcome", "secondary_outcome", "final_trimester_code") %>%
+  chain_end(
+    success_fun = success_confirmation,
+    error_fun = validation_error
+  )
+
+sep("Loading labor delivery codes")
+labor_delivery_codes %>%
+  chain_start() %>%
+  verify(has_all_names("code", "description")) %>%
+  verify(has_class("code", "description", class = "character")) %>%
+  assert(not_na, "code", "description") %>%
+  chain_end(
+    success_fun = success_confirmation,
+    error_fun = validation_error
+  )
+
+# Closing log -------------
+log_close()
+
+# Storing data for internal purposes -------------
+usethis::use_data(icd9_diagnosis_pregnancy_codes,icd10_diagnosis_pregnancy_codes,icd9_procedure_pregnancy_codes,icd10_procedure_pregnancy_codes,cpt_pregnancy_codes,labor_delivery_codes, internal = TRUE)
+```
+
+

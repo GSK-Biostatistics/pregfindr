@@ -1,0 +1,426 @@
+---
+title: "Identifying Pregnancy Start and End Dates"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Identifying Pregnancy Start and End Dates}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+**Identifying Pregnancy Start and End Dates**
+
+The following logic will calculate the start and end dates of a
+pregnancy. If patients have multiple outcomes, gestation weeks codes or
+multiple trimester codes, overlapping start and end dates can result.
+This step applies hierarchies to assign start and end dates to each
+pregnancy episode for each patient.
+
+**Section A -- Estimating the start and end dates of a pregnancy using
+the outcomes, gestation weeks and trimester codes**
+
+1.  Using ICD-10 codes Z3Axx and P073xx/P072xx and ICD-9 codes 765.2x to
+    identify the gestation weeks and calculate the start of the
+    pregnancy. If multiple codes occur for the same patients, use the
+    latest claim date and max \# of gestation weeks
+
+| Code   | Description                                                       | Days |
+|:----------|:-------------------------------------------------|:----------|
+| P0722  | Extreme immaturity of newborn, gestational age 23 completed weeks | 161  |
+| P0723  | Extreme immaturity of newborn, gestational age 24 completed weeks | 168  |
+| P0724  | Extreme immaturity of newborn, gestational age 25 completed weeks | 175  |
+| P0725  | Extreme immaturity of newborn, gestational age 26 completed weeks | 182  |
+| P0726  | Extreme immaturity of newborn, gestational age 27 completed weeks | 189  |
+| P0731  | Preterm newborn, gestational age 28 completed weeks               | 196  |
+| P0732  | Preterm newborn, gestational age 29 completed weeks               | 203  |
+| P0733  | Preterm newborn, gestational age 30 completed weeks               | 210  |
+| P0734  | Preterm newborn, gestational age 31 completed weeks               | 217  |
+| P0735  | Preterm newborn, gestational age 32 completed weeks               | 224  |
+| P0736  | Preterm newborn, gestational age 33 completed weeks               | 231  |
+| P0737  | Preterm newborn, gestational age 34 completed weeks               | 238  |
+| P0738  | Preterm newborn, gestational age 35 completed weeks               | 245  |
+| P0739  | Preterm newborn, gestational age 36 completed weeks               | 252  |
+| Z3A08  | 8 weeks gestation of pregnancy                                    | 56   |
+| Z3A09  | 9 weeks gestation of pregnancy                                    | 63   |
+| Z3A10  | 10 weeks gestation of pregnancy                                   | 70   |
+| Z3A11  | 11 weeks gestation of pregnancy                                   | 77   |
+| Z3A12  | 12 weeks gestation of pregnancy                                   | 84   |
+| Z3A13  | 13 weeks gestation of pregnancy                                   | 91   |
+| Z3A14  | 14 weeks gestation of pregnancy                                   | 98   |
+| Z3A15  | 15 weeks gestation of pregnancy                                   | 105  |
+| Z3A16  | 16 weeks gestation of pregnancy                                   | 112  |
+| Z3A17  | 17 weeks gestation of pregnancy                                   | 119  |
+| Z3A18  | 18 weeks gestation of pregnancy                                   | 126  |
+| Z3A19  | 19 weeks gestation of pregnancy                                   | 133  |
+| Z3A20  | 20 weeks gestation of pregnancy                                   | 140  |
+| Z3A21  | 21 weeks gestation of pregnancy                                   | 147  |
+| Z3A22  | 22 weeks gestation of pregnancy                                   | 154  |
+| Z3A23  | 23 weeks gestation of pregnancy                                   | 161  |
+| Z3A24  | 24 weeks gestation of pregnancy                                   | 168  |
+| Z3A25  | 25 weeks gestation of pregnancy                                   | 175  |
+| Z3A26  | 26 weeks gestation of pregnancy                                   | 182  |
+| Z3A27  | 27 weeks gestation of pregnancy                                   | 189  |
+| Z3A28  | 28 weeks gestation of pregnancy                                   | 196  |
+| Z3A29  | 29 weeks gestation of pregnancy                                   | 203  |
+| Z3A30  | 30 weeks gestation of pregnancy                                   | 210  |
+| Z3A31  | 31 weeks gestation of pregnancy                                   | 217  |
+| Z3A32  | 32 weeks gestation of pregnancy                                   | 224  |
+| Z3A33  | 33 weeks gestation of pregnancy                                   | 231  |
+| Z3A34  | 34 weeks gestation of pregnancy                                   | 238  |
+| Z3A35  | 35 weeks gestation of pregnancy                                   | 245  |
+| Z3A36  | 36 weeks gestation of pregnancy                                   | 252  |
+| Z3A37  | 37 weeks gestation of pregnancy                                   | 259  |
+| Z3A38  | 38 weeks gestation of pregnancy                                   | 266  |
+| Z3A39  | 39 weeks gestation of pregnancy                                   | 273  |
+| Z3A40  | 40 weeks gestation of pregnancy                                   | 280  |
+| Z3A41  | 41 weeks gestation of pregnancy                                   | 287  |
+| Z3A42  | 42 weeks gestation of pregnancy                                   | 294  |
+| Z3A49  | Greater than 42 weeks gestation of pregnancy                      | 301  |
+| 765.22 | 24 completed weeks of gestation                                   | 168  |
+| 765.23 | 25-26 completed weeks of gestation                                | 182  |
+| 765.24 | 27-28 completed weeks of gestation                                | 196  |
+| 765.25 | 29-30 completed weeks of gestation                                | 210  |
+| 765.26 | 31-32 completed weeks of gestation                                | 224  |
+| 765.27 | 33-34 completed weeks of gestation                                | 238  |
+| 765.28 | 35-36 completed weeks of gestation                                | 252  |
+
+1.  Using the codes that are specific to preterm delivery and trimester.
+    Use the trimesters to calculate the start and end dates of the
+    pregnancy
+
+    -   Trimester 3 (assigning median of 34 weeks)
+
+        i.  Use the last claim date
+
+        ii. Pregnancy end date = the last claim date
+
+        iii. Pregnancy start date = the last claim date - 238
+
+    -   Trimester 2 (assigning median of 26 weeks)
+
+        i.  Use the last claim date
+
+        ii. Pregnancy end date = the last claim date
+
+        iii. Pregnancy start date = the last claim date - 182
+
+| O6012   | Preterm labor second tri w preterm delivery second trimester  |
+|:--------|:--------------------------------------------------------------|
+| O6012X0 | Preterm labor second tri w preterm delivery second tri\| unsp |
+| O6012X1 | Preterm labor second tri w preterm del second tri\| fetus 1   |
+| O6012X2 | Preterm labor second tri w preterm del second tri\| fetus 2   |
+| O6012X3 | Preterm labor second tri w preterm del second tri\| fetus 3   |
+| O6012X4 | Preterm labor second tri w preterm del second tri\| fetus 4   |
+| O6012X5 | Preterm labor second tri w preterm del second tri\| fetus 5   |
+| O6012X9 | Preterm labor second tri w preterm delivery second tri\| oth  |
+| O6013   | Preterm labor second tri w preterm delivery third trimester   |
+| O6013X0 | Preterm labor second tri w preterm delivery third tri\| unsp  |
+| O6013X1 | Preterm labor second tri w preterm del third tri\| fetus 1    |
+| O6013X2 | Preterm labor second tri w preterm del third tri\| fetus 2    |
+| O6013X3 | Preterm labor second tri w preterm del third tri\| fetus 3    |
+| O6013X4 | Preterm labor second tri w preterm del third tri\| fetus 4    |
+| O6013X5 | Preterm labor second tri w preterm del third tri\| fetus 5    |
+| O6013X9 | Preterm labor second tri w preterm delivery third tri\| oth   |
+| O6014   | Preterm labor third tri w preterm delivery third trimester    |
+| O6014X0 | Preterm labor third tri w preterm delivery third tri\| unsp   |
+| O6014X1 | Preterm labor third tri w preterm del third tri\| fetus 1     |
+| O6014X2 | Preterm labor third tri w preterm del third tri\| fetus 2     |
+| O6014X3 | Preterm labor third tri w preterm del third tri\| fetus 3     |
+| O6014X4 | Preterm labor third tri w preterm del third tri\| fetus 4     |
+| O6014X5 | Preterm labor third tri w preterm del third tri\| fetus 5     |
+| O6014X9 | Preterm labor third tri w preterm delivery third tri\| oth    |
+
+1.  Using the following outcome codes to calculate the start and end
+    dates of the pregnancy.(assuming 270 is 39 weeks of pregnancy)
+
+    -   Ectopic pregnancy
+
+        i.  Use the last claim date
+
+        ii. Pregnancy end date = the last claim date
+
+        iii. Pregnancy start date = the last claim date - 56
+
+    -   Induced/Spontaneous abortion (84 days=12 weeks (mid range of
+        SA/IA diagnosis 6 weeks to 22 weeks) from 0 to 154 days (10
+        weeks)
+
+        i.  Use the last claim date
+
+        ii. Pregnancy end date = the last claim date
+
+        iii. Pregnancy start date = the last claim date - 70
+
+    -   Stillbirth (22-40 weeks) (155 to 280 days) (distribution of data
+        shows median: 189 days and mean 194 days)
+
+        i.  Use the last claim date
+
+        ii. Pregnancy end date = the last claim date
+
+        iii. Pregnancy start date = the last claim date - 194
+
+    -   Preterm (24 weeks-37 weeks) within 168-258 (median 34 weeks)
+
+        i.  Use the last claim date
+
+        ii. Pregnancy end date = the last claim date
+
+        iii. Pregnancy start date = the last claim date - 238
+
+    -   Cesarean section/Delivery/Post-term birth/Post-term birth\*/Term
+        birth 259-280 days
+
+        i.  Use the last claim date
+
+        ii. Pregnancy end date = the last claim date
+
+        iii. Pregnancy start date = the last claim date - 270
+
+    -   Unclassified pregnancy loss
+
+        i.  Use the last claim date
+
+        ii. Pregnancy end date = the last claim date
+
+        iii. Pregnancy start date = the last claim date - 70
+
+    -   Postpartum
+
+        i.  Use the first claim date
+
+        ii. Pregnancy end date = the first claim date
+
+        iii. Pregnancy start date = the first claim date - 270
+
+2.  Using the trimester codes to calculate the start and end dates of
+    the pregnancy
+
+    -   Trimester 3
+
+        i.  Use the last claim date
+
+        ii. Pregnancy end date = the last claim date
+
+        iii. Pregnancy start date = the last claim date - 270
+
+    -   Trimester 2
+
+        i.  Use the last claim date
+
+        ii. Pregnancy end date = the last claim date + 135
+
+        iii. Pregnancy start date = the last claim date - 135
+
+    -   Trimester 1
+
+        i.  Use the first claim date
+
+        ii. Pregnancy end date = the first claim date + 214
+
+        iii. Pregnancy start date = the first claim date -- 56
+
+    -   Trimester 4
+
+        i.  Use the last claim date
+
+        ii. Pregnancy end date = the last claim date + 174
+
+        iii. Pregnancy start date = the last claim date -- 96
+
+    -   Trimester 5
+
+        i.  Use the last claim date
+
+        ii. Pregnancy end date = the last claim date + 68
+
+        iii. Pregnancy start date = the last claim date - 202
+
+    -   Trimester 8
+
+        i.  Use the first claim date
+
+        ii. Pregnancy end date = the first claim date
+
+        iii. Pregnancy start date = the first claim date -- 270
+
+***Performance***: Can Assign 98.2% of Pregnancy Claims with a Start &
+End date
+
+**Section B -- If patient has overlapping start and end dates during the
+same pregnancy term, use the following hierarchy logic to assign the
+correct range.**
+
+***Start Dates*****:**
+
+1.  If exist, use gestation weeks code start date (i.e.
+    Z3Axx/P073xx/P072xx/765.2x)
+
+2.  If no gestation weeks codes but delivery outcome and classified loss
+    outcome exist, use the following:
+
+    i.  Use preterm start date
+
+    ii. Use stillbirth start date
+
+    iii. Use abortion start date
+
+    iv. Use ectopic start date
+
+3.  If no gestation weeks codes and no delivery outcome exist but
+    classified loss outcome exist, use the following:
+
+    i.  Use ectopic start date
+
+    ii. Use abortion start date
+
+    iii. Use stillbirth start date
+
+    iv. Use preterm start date
+
+4.  For all remaining case, use the following hierarchy:
+
+    i.  Use delivery start date
+
+    ii. Use unclassified loss start date
+
+    iii. Use trimester 1 start date
+
+    iv. Use trimester 2 start date
+
+    v.  Use trimester 3 start date
+
+    vi. Use trimester 4 start date
+
+    vii. Use trimester 5 start date
+
+    viii. Use postpartum start date
+
+    ix. Use trimester 8 start date
+
+***End Dates*****:**
+
+1.  If delivery outcome exists, use delivery end date
+
+2.  If no delivery outcome but gestation weeks exist, use the following:
+
+    i.  If gestation weeks last date \> ectopic last date, use gestation
+        weeks last date
+
+        If gestation weeks last date \<= ectopic last date, use ectopic
+        last date
+
+    ii. If gestation weeks last date \> abortion last date, use
+        gestation weeks last date
+
+        If gestation weeks last date \<= abortion last date, use
+        abortion last date
+
+    iii. If gestation weeks last date \> stillbirth last date, use
+         gestation weeks last date
+    If gestation weeks last date &lt;= stillbirth last date, use
+    stillbirth last date
+
+    iv. If gestation weeks last date \> unclassified loss last date, use
+        gestation weeks last date
+
+        If gestation weeks last date \<= unclassified loss last date,
+        use unclassified loss last date
+
+    v.  If gestation weeks last date \> preterm last date, use gestation
+        weeks last date
+
+        If gestation weeks last date \<= preterm last date, use preterm
+        last date
+
+    vi. If gestation weeks last date \> trimester 3 last date, use
+        gestation weeks last date
+
+        If gestation weeks last date \<= trimester 3 last date, use
+        trimester 3 last date
+
+    vii. If gestation weeks last date \> trimester 2 last date, use
+         gestation weeks last date
+    If gestation weeks last date &lt;= trimester 2 last date, use
+    trimester 2 last date
+    
+    viii. If gestation weeks last date \> trimester 1 last date, use
+          gestation weeks last date
+          If gestation weeks last date &lt;= trimester 1 last date, use
+    trimester 1 last date
+
+    ix. If gestation weeks last date \> trimester 4 last date, use
+        gestation weeks last date
+
+        If gestation weeks last date \<= trimester 4 last date, use
+        trimester 4 last date
+
+    x.  If gestation weeks last date \> trimester 5 last date, use
+        gestation weeks last date
+
+        If gestation weeks last date \<= trimester 5 last date, use
+        trimester 5 last date
+
+    xi. If gestation weeks last date \> postpartum last date, use
+        gestation weeks last date
+
+        If gestation weeks last date \<= postpartum last date, use
+        postpartum last date
+
+    xii. If gestation weeks last date \> trimester 8 last date, use
+         gestation weeks last date
+         If gestation weeks last date &lt;= trimester 8 last date, use
+         trimester 8 last date
+
+3.  If no gestation weeks codes and no delivery outcome exist but
+    classified loss outcome exist, use the following:
+
+    i.  Use ectopic last date
+
+    ii. Use abortion last date
+
+    iii. Use stillbirth last date
+
+    iv. Use unclassified loss last date
+
+    v.  Use preterm last date
+
+4.  For all remaining case, use the following hierarchy:
+
+    i.  Use delivery last date
+
+    ii. Use trimester 3 last date
+
+    iii. Use trimester 2 last date
+
+    iv. Use trimester 1 last date
+
+    v.  Use trimester 4 last date
+
+    vi. Use trimester 5 last date
+
+    vii. Use postpartum last date
+
+    viii. Use trimester 8 last date
+
+    ix. Use gestation weeks last date
+
+**References for estimated duration of pregnancy based on loss outcomes:**
+
+Ectopic pregnancy is usually diagnosed in the first trimester of
+pregnancy. The most common gestational age at diagnosis is 6 to 10
+weeks. Average 7.2 weeks. (Murray H, Baakdah H, Bardell T, Tulandi T.
+Diagnosis and treatment of ectopic pregnancy. CMAJ : Canadian Medical
+Association Journal. 2005;173(8):905-912. <doi:10.1503/cmaj.050222>.)
+
+Spontaneous Abortion occurs at a mean gestational age of 9.751 (SD
+4.738) weeks. Lang K, Nuevo-Chiquero A. Trends in Self-reported
+Spontaneous Abortions: 1970--2000. Demography.
+2012;49(3):989-1009. <doi:10.1007/s13524-012-0113-0>.
+
+Induced Abortions occur in the first 12 weeks for 89% of IAs; 66% occur
+before 8 weeks; 14.5% occur at 9-10 weeks; 8.3% occur at 11-12 weeks.
+(data taken from 2013
+<https://www.guttmacher.org/fact-sheet/induced-abortion-united-states>)

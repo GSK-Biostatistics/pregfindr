@@ -1,0 +1,170 @@
+---
+title: "Outcome Hierarchy"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Outcome Hierarchy}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+**Outcome Hierarchy**
+
+**If multiple conflicting outcomes occur on the same day, the outcomes
+for that service day will be reassigned based on the logic below.
+However, the trimester codes will be preserved and unaffected.**
+
+Acceptable Combinations:
+
+-   Delivery/Live Birth/C-Section/Twin
+
+-   Delivery/Live Birth/C-Section/Multiple
+
+-   Delivery/Live Birth/C-Section/Term/Postpartum
+
+-   Delivery/Live Birth/C-Section/Term/Postpartum/Twin
+
+-   Delivery/Live Birth/C-Section/Term/Postpartum/Multiple
+
+-   Delivery/Live Birth/C-Section/Post Term/Postpartum
+
+-   Delivery/Live Birth/C-Section/Post Term/Postpartum/Twin
+
+-   Delivery/Live Birth/C-Section/Post Term/Postpartum/Multiple
+
+-   Delivery/Live Birth/C-Section/Pre-Term
+
+-   Delivery/Live Birth/C-Section/Pre-Term/Twin
+
+-   Delivery/Live Birth/C-Section/Pre-Term/Twin/Postpartum
+
+-   Delivery/Live Birth/C-Section/Pre-Term/Multiple
+
+-   Delivery/Live Birth/C-Section/Pre-Term/Multiple/Postpartum
+
+-   Delivery/C-Section/Stillborn/Unclassified Pregnancy Loss & Twin
+
+-   Delivery/C-Section/Stillborn/Unclassified Pregnancy Loss & Multiple
+
+-   Delivery/C-Section/Stillborn/Unclassified Pregnancy Loss
+
+-   Spontaneous Abortion/Unclassified Pregnancy Loss/Postpartum
+
+-   Induced Abortion/Unclassified Pregnancy Loss/Postpartum
+
+-   Stillborn/Unclassified Pregnancy Loss/Postpartum
+
+-   Ectopic Pregnancy/Unclassified Pregnancy Loss/Postpartum
+
+-   Pregnancy with any acceptable Outcome combination
+
+1.  If outcome of "Twin Birth" and "Twin Birth\*", overwrite "Twin
+    Birth\*", as "Twin Birth" for entire pregnancy
+
+    If outcome of "Multiple Birth Unspecified" and "Multiple Birth
+    Unspecified \*", overwrite "Multiple Birth Unspecified \*", as
+    "Multiple Birth Unspecified" for entire pregnancy
+
+    If outcome of "Multiple Birth" and "Multiple Birth\*", overwrite
+    "Multiple Birth\*", as "Multiple Birth" for entire pregnancy
+
+    If outcome of "Twin Birth\*" and "Multiple Birth Unspecified\*",
+    overwrite "Multiple Birth Unspecified\*" as "Twin Birth\*" for
+    entire pregnancy
+
+    Any non-stars use non-star; when both stars, use stars
+
+    If outcome of "Twin Birth\*" and "Multiple Birth Unspecified\*",
+    overwrite "Multiple Birth Unspecified\*" as "Twin Birth\*" for
+    entire pregnancy
+
+    If outcome of "Multiple Birth" and "Multiple Birth Unspecified",
+    overwrite "Multiple Birth Unspecified" as "Multiple Birth" for
+    entire pregnancy
+
+    If outcome of "Twin Birth" and "Multiple Birth", then classify as
+    "Multiple Birth Unspecified" for entire pregnancy
+
+    Entire pregnancy defined as 270 days
+
+2.  Regardless of L&D Codes; if multiple losses occur within 60 days,
+    apply hierarchy
+
+    i.  Ectopic pregnancy
+    ii. Spontaneous abortion
+    iii. Induced abortion
+    iv. Stillbirth
+    v.  Unclassified pregnancy loss
+
+3.  No multiples (within 180 days):
+
+    Loss outcome within -30 days to +60 days of a Labor & Delivery Code
+
+    Labor & Delivery outcome will be overwritten
+
+    Spontaneous abortion & Labor & Delivery Codes = Spontaneous abortion
+
+    Ectopic & Labor & Delivery Codes = Ectopic
+
+    Induced abortion & Labor & Delivery Codes = Induced abortion
+
+    Stillbirth abortion & Labor & Delivery Codes = Stillbirth
+
+    \# Unclassified outcomes \>= \# Labor & Delivery Codes =
+    Unclassified
+
+    \# Unclassified \< \# Labor & Delivery Codes = Pregnancy\*
+
+4.  No multiple pregnancy within 180 days:
+
+    Labor & Delivery Codes within +60 days to +180 days of a Loss
+    outcome
+
+    Loss outcome will be overwritten
+
+    Ectopic & more than 1 Labor & Delivery Codes = Pregnancy\*
+
+    Spontaneous abortion & more than 1 Labor & Delivery Codes =
+    Pregnancy\*
+
+    Induced abortion & more than 1 Labor & Delivery Codes = Pregnancy\*
+
+    Stillbirth abortion & more than 1 Labor & Delivery Codes =
+    Pregnancy\*
+
+    Unclassified & more than 1 Labor & Delivery Codes = Pregnancy\*
+
+5.  If multiple Term outcomes occur within -60 days to +60 days of each
+    other, apply the following hierarchy:
+
+    a.  Pre-term
+    b.  Term
+    c.  Post-term
+    d.  Post-term\*
+
+"CAPS" refers to outcome classification grouping
+
+**Classification of outcomes**
+
+| Outcome                           | Use codes for                                                                                                                                                                                                                                      |
+|-----------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Cesarean section                  | Cesarean section                                                                                                                                                                                                                                   |
+| Delivery                          | Delivery ⚠ If a more specific outcome code for Delivery is available, use it instead. More specific outcomes are: Cesarean Section, Childbirth, Multiple Birth, Unspecified Multiple Birth, Post-term Birth, Preterm Birth, Term Birth, Twin Birth |
+| Ectopic pregnancy                 | Ectopic pregnancy                                                                                                                                                                                                                                  |
+| Induced abortion                  | Induced abortion                                                                                                                                                                                                                                   |
+| Live birth                        | Live birth                                                                                                                                                                                                                                         |
+| Multiple birth (more than twins)  | Multiple birth (more than twins)                                                                                                                                                                                                                   |
+| Multiple births (twins and above) | Twin birth, Multiple birth unspecified (meaning twins and above), Multiple birth unspecified\*                                                                                                                                                     |
+| Post-term birth                   | Post-term birth                                                                                                                                                                                                                                    |
+| Postpartum                        | Postpartum                                                                                                                                                                                                                                         |
+| Pregnancy                         | Any code                                                                                                                                                                                                                                           |
+| Preterm birth                     | Preterm birth                                                                                                                                                                                                                                      |
+| Spontaneous abortion              | Spontaneous abortion                                                                                                                                                                                                                               |
+| Still birth                       | Still birth                                                                                                                                                                                                                                        |
+| Term birth                        | Term birth                                                                                                                                                                                                                                         |
+| Twin birth                        | Twin birth                                                                                                                                                                                                                                         |
+| Twin birth\*                      | Twin birth\*                                                                                                                                                                                                                                       |
+| Unclassified pregnancy loss       | Unclassified pregnancy loss                                                                                                                                                                                                                        |
+| Total Pregnancy loss              | Ectopic pregnancy, Induced abortion, Spontaneous abortion, Still birth, Unclassified pregnancy loss (only 1 per woman)                                                                                                                             |
