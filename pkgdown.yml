@@ -1,0 +1,15 @@
+pandoc: 2.19.2
+pkgdown: 2.0.7
+pkgdown_sha: ~
+articles:
+  codelists: codelists.html
+  data_extraction: data_extraction.html
+  identifying_pregnancy_start_and_end_dates: identifying_pregnancy_start_and_end_dates.html
+  outcome_hierarchy: outcome_hierarchy.html
+  pregfindr: pregfindr.html
+  trimester_hierarchy: trimester_hierarchy.html
+last_built: 2023-10-20T16:51Z
+urls:
+  reference: https://gsk-biostatistics.github.io/pregfindr/reference
+  article: https://gsk-biostatistics.github.io/pregfindr/articles
+
